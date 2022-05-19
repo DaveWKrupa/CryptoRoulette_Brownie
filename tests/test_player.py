@@ -25,19 +25,17 @@ def test_player_get_fee():
     games = cryptoRoulette.getGames(True)
     print(games)
     game_added = newGameKey in games
-    assert (game_added, "Game not added")
+    assert game_added, "Game not added"
     dealerGameStatus = cryptoRoulette.getGameStatus(newGameKey)
-    print("dealerGameStatus")
-    assert (
-        dealerGameStatus == "Waiting for players",
-        "Game status incorrect on start.",
-    )
+    print(dealerGameStatus)
+    assert dealerGameStatus == "Waiting for players", "Game status incorrect on start."
+
     if game_added:
         fee = cryptoRoulette.getPlayerFee(newGameKey)
         print(fee)
-        assert (fee == ante * 10, "Fee does not equal ante times ten.")
+        assert fee == ante * 10, "Fee does not equal ante times ten."
     else:
-        assert (False, "Game not added.")
+        assert False, "Game not added."
 
 
 def test_player_join_game():
@@ -74,22 +72,28 @@ def test_player_join_game():
 
         (
             dealer,
-            startTime,
-            endTime,
             ante,
             gameStatus,
             potAmount,
             playerCount,
+            currentRound,
         ) = cryptoRoulette.getGameInfo(newGameKey)
 
-        print(dealer, startTime, endTime, ante, gameStatus, potAmount, playerCount)
+        print(
+            dealer,
+            ante,
+            gameStatus,
+            potAmount,
+            playerCount,
+            currentRound,
+        )
 
         (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
         print("address and stack")
         print(playerAddresses[0])
         print(playerStacks[0])
-        assert (playerAddresses[0] == account, "Player not added")
-        assert (playerStacks[0] == fee, "Fee not added")
+        assert playerAddresses[0] == account, "Player not added"
+        assert playerStacks[0] == fee, "Fee not added"
 
 
 def test_all_players_join_game():
@@ -117,13 +121,11 @@ def test_all_players_join_game():
     games = cryptoRoulette.getGames(True)
     print(games)
     game_added = newGameKey in games
-    assert (game_added, "Game not added")
+    assert game_added, "Game not added"
     dealerGameStatus = cryptoRoulette.getGameStatus(newGameKey)
     print(dealerGameStatus)
-    assert (
-        dealerGameStatus == "Waiting for players",
-        "Game status incorrect on start.",
-    )
+    assert dealerGameStatus == "Waiting for players", "Game status incorrect on start."
+
     if game_added:
         gameKeys = cryptoRoulette.getDealerGameKeys(account)
         print(gameKeys)
@@ -135,128 +137,165 @@ def test_all_players_join_game():
 
         (
             dealer,
-            startTime,
-            endTime,
             ante,
             gameStatus,
             potAmount,
             playerCount,
+            currentRound,
         ) = cryptoRoulette.getGameInfo(newGameKey)
 
-        print(dealer, startTime, endTime, ante, gameStatus, potAmount, playerCount)
-        assert (playerCount == 1, "Incorrect player count, should be 1")
+        print(
+            dealer,
+            ante,
+            gameStatus,
+            potAmount,
+            playerCount,
+            currentRound,
+        )
+        assert playerCount == 1, "Incorrect player count, should be 1"
 
         (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
         print("address and stack")
         print(playerAddresses[0])
         print(playerStacks[0])
-        assert (playerAddresses[0] == playerAcct1, "Player not added")
-        assert (playerStacks[0] == fee, "Fee not added")
+        assert playerAddresses[0] == playerAcct1, "Player not added"
+        assert playerStacks[0] == fee, "Fee not added"
 
         cryptoRoulette.joinGame(newGameKey, {"from": playerAcct2, "value": fee})
 
         (
             dealer,
-            startTime,
-            endTime,
             ante,
             gameStatus,
             potAmount,
             playerCount,
+            currentRound,
         ) = cryptoRoulette.getGameInfo(newGameKey)
 
-        print(dealer, startTime, endTime, ante, gameStatus, potAmount, playerCount)
-        assert (playerCount == 2, "Incorrect player count, should be 2")
+        print(
+            dealer,
+            ante,
+            gameStatus,
+            potAmount,
+            playerCount,
+            currentRound,
+        )
+        assert playerCount == 2, "Incorrect player count, should be 2"
         (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
         print("address and stack")
         print(playerAddresses[1])
         print(playerStacks[1])
-        assert (playerAddresses[1] == playerAcct2, "Player not added")
-        assert (playerStacks[1] == fee, "Fee not added")
+        assert playerAddresses[1] == playerAcct2, "Player not added"
+        assert playerStacks[1] == fee, "Fee not added"
 
         cryptoRoulette.joinGame(newGameKey, {"from": playerAcct3, "value": fee})
 
         (
             dealer,
-            startTime,
-            endTime,
             ante,
             gameStatus,
             potAmount,
             playerCount,
+            currentRound,
         ) = cryptoRoulette.getGameInfo(newGameKey)
 
-        print(dealer, startTime, endTime, ante, gameStatus, potAmount, playerCount)
-        assert (playerCount == 3, "Incorrect player count, should be 3")
+        print(
+            dealer,
+            ante,
+            gameStatus,
+            potAmount,
+            playerCount,
+            currentRound,
+        )
+        assert playerCount == 3, "Incorrect player count, should be 3"
         (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
         print("address and stack")
         print(playerAddresses[2])
         print(playerStacks[2])
-        assert (playerAddresses[2] == playerAcct3, "Player not added")
-        assert (playerStacks[2] == fee, "Fee not added")
+        assert playerAddresses[2] == playerAcct3, "Player not added"
+        assert playerStacks[2] == fee, "Fee not added"
 
         cryptoRoulette.joinGame(newGameKey, {"from": playerAcct4, "value": fee})
 
         (
             dealer,
-            startTime,
-            endTime,
             ante,
             gameStatus,
             potAmount,
             playerCount,
+            currentRound,
         ) = cryptoRoulette.getGameInfo(newGameKey)
 
-        print(dealer, startTime, endTime, ante, gameStatus, potAmount, playerCount)
-        assert (playerCount == 4, "Incorrect player count, should be 4")
+        print(
+            dealer,
+            ante,
+            gameStatus,
+            potAmount,
+            playerCount,
+            currentRound,
+        )
+        assert playerCount == 4, "Incorrect player count, should be 4"
         (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
         print("address and stack")
         print(playerAddresses[3])
         print(playerStacks[3])
-        assert (playerAddresses[3] == playerAcct4, "Player not added")
-        assert (playerStacks[3] == fee, "Fee not added")
+        assert playerAddresses[3] == playerAcct4, "Player not added"
+        assert playerStacks[3] == fee, "Fee not added"
 
         cryptoRoulette.joinGame(newGameKey, {"from": playerAcct5, "value": fee})
 
         (
             dealer,
-            startTime,
-            endTime,
+            e,
             ante,
             gameStatus,
             potAmount,
             playerCount,
+            currentRound,
         ) = cryptoRoulette.getGameInfo(newGameKey)
 
-        print(dealer, startTime, endTime, ante, gameStatus, potAmount, playerCount)
-        assert (playerCount == 5, "Incorrect player count, should be 5")
+        print(
+            dealer,
+            ante,
+            gameStatus,
+            potAmount,
+            playerCount,
+            currentRound,
+        )
+        assert playerCount == 5, "Incorrect player count, should be 5"
         (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
         print("address and stack")
         print(playerAddresses[4])
         print(playerStacks[4])
-        assert (playerAddresses[4] == playerAcct5, "Player not added")
-        assert (playerStacks[4] == fee, "Fee not added")
+        assert playerAddresses[4] == playerAcct5, "Player not added"
+        assert playerStacks[4] == fee, "Fee not added"
 
         cryptoRoulette.joinGame(newGameKey, {"from": playerAcct6, "value": fee})
 
         (
             dealer,
-            startTime,
-            endTime,
             ante,
             gameStatus,
             potAmount,
             playerCount,
+            currentRound,
         ) = cryptoRoulette.getGameInfo(newGameKey)
 
-        print(dealer, startTime, endTime, ante, gameStatus, potAmount, playerCount)
-        assert (playerCount == 6, "Incorrect player count, should be 6")
+        print(
+            dealer,
+            ante,
+            gameStatus,
+            potAmount,
+            playerCount,
+            currentRound,
+        )
+        assert playerCount == 6, "Incorrect player count, should be 6"
         (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
         print("address and stack")
         print(playerAddresses[5])
         print(playerStacks[5])
-        assert (playerAddresses[5] == playerAcct6, "Player not added")
-        assert (playerStacks[5] == fee, "Fee not added")
+        assert playerAddresses[5] == playerAcct6, "Player not added"
+        assert playerStacks[5] == fee, "Fee not added"
 
         # all players have been added
         # the next player should not be allowed to join

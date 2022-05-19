@@ -8,13 +8,10 @@ from scripts.helper_scripts import (
 )
 
 
-def deploy():
+def deploy(account):
 
     if network.show_active() in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
         deploy_mocks()
-        account = get_account()
-    else:
-        account = get_account(configkey="private_key_player1")
 
     deck = CryptoRoulette.deploy(
         get_contract("vrf_coordinator").address,
