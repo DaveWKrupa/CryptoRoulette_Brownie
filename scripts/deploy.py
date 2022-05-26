@@ -8,12 +8,18 @@ from scripts.helper_scripts import (
 )
 
 
-def deploy(account):
+def deploy():
 
     if network.show_active() in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
         deploy_mocks()
+        account = get_account(index=0)
+    else:
+        if CryptoRoulette[-1]:
+            return CryptoRoulette[-1]
+        else:
+            account = get_account(configkey="private_key_player1")
 
-    deck = CryptoRoulette.deploy(
+    cryptoRoulette = CryptoRoulette.deploy(
         get_contract("vrf_coordinator").address,
         get_contract("link_token").address,
         config["networks"][network.show_active()]["fee"],
@@ -22,7 +28,7 @@ def deploy(account):
         publish_source=config["networks"][network.show_active()].get("verify", False),
     )
     print("Deployed CryptoRoulette!")
-    return deck
+    return cryptoRoulette
 
 
 def test_dealer_start_end_game_success():

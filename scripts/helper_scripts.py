@@ -3,7 +3,6 @@ from brownie import (
     config,
     network,
     Contract,
-    MockV3Aggregator,
     VRFCoordinatorMock,
     LinkToken,
     interface,
@@ -16,7 +15,6 @@ LOCAL_BLOCKCHAIN_ENVIRONMENTS = ["development", "ganache-local"]
 FORKED_LOCAL_ENVIRONMENTS = ["mainnet-fork", "mainnet-fork-dev", "mainnet-fork-infura"]
 
 contract_to_mock = {
-    "eth_usd_price_feed": MockV3Aggregator,
     "vrf_coordinator": VRFCoordinatorMock,
     "link_token": LinkToken,
 }  # map name to contract type
@@ -37,14 +35,8 @@ def get_account(index=None, id=None, configkey=None):
     return accounts.add(config["wallets"]["from_key"])
 
 
-# print(f"The active network is {network.show_active()}")
-# print("Deploying mocks...")
-# MockV3Aggregator is an array of already deployed MockV3Aggregators, so if
-# it has not yet been deployed then length of the array = 0
-def deploy_mocks(decimals=DECIMALS, initial_value=STARTING_PRICE):
-    account = get_account()
-    if len(MockV3Aggregator) <= 0:
-        MockV3Aggregator.deploy(decimals, initial_value, {"from": account})
+def deploy_mocks():
+    account = get_account(index=0)
     if len(LinkToken) <= 0:
         link_token = LinkToken.deploy({"from": account})
     else:

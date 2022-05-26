@@ -1,6 +1,6 @@
-from brownie import exceptions, CryptoRoulette
+from brownie import exceptions, CryptoRoulette, network
 from scripts.deploy import deploy
-from scripts.helper_scripts import get_account
+from scripts.helper_scripts import get_account, LOCAL_BLOCKCHAIN_ENVIRONMENTS
 from web3 import Web3
 import pytest
 
@@ -12,12 +12,12 @@ def test_deploy():
 
 def test_player_get_fee():
     # fee is 10 times the ante
+    if network.show_active() in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
+        account = get_account(index=0)
+    else:
+        account = get_account(configkey="private_key_player1")
 
-    try:
-        cryptoRoulette = CryptoRoulette[-1]
-    except IndexError:
-        account = get_account()
-        cryptoRoulette = deploy()
+    cryptoRoulette = deploy()
 
     newGameKey = "mynewgamekey"  # needs to be changed each run on same contract
     ante = Web3.toWei(0.01, "ether")
@@ -42,11 +42,12 @@ def test_player_join_game():
     #   dealer is going to join game after starting it
     # everything should work
 
-    try:
-        cryptoRoulette = CryptoRoulette[-1]
-    except IndexError:
-        account = get_account()
-        cryptoRoulette = deploy()
+    if network.show_active() in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
+        account = get_account(index=0)
+    else:
+        account = get_account(configkey="private_key_player1")
+
+    cryptoRoulette = deploy()
 
     newGameKey = "mynewgamekey"  # needs to be changed each run on same contract
     ante = Web3.toWei(0.01, "ether")
@@ -97,6 +98,8 @@ def test_player_join_game():
 
 
 def test_all_players_join_game():
+    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
+        return  # only use this in local blockchain environment
     #   dealer is going to join game after starting it
     # then 5 other players will join the game
     # a seventh player will try to join the game but will not be able to
@@ -109,15 +112,11 @@ def test_all_players_join_game():
     playerAcct6 = get_account(index=5)
     playerAcct7 = get_account(index=6)
 
-    try:
-        cryptoRoulette = CryptoRoulette[-1]
-    except IndexError:
-        account = get_account()
-        cryptoRoulette = deploy()
+    cryptoRoulette = deploy()
 
     newGameKey = "mynewgamekey"  # needs to be changed each run on same contract
     ante = Web3.toWei(0.01, "ether")
-    cryptoRoulette.startNewGame(ante, newGameKey, {"from": account, "value": ante})
+    cryptoRoulette.startNewGame(ante, newGameKey, {"from": dealerAcct1, "value": ante})
     games = cryptoRoulette.getGames(True)
     print(games)
     game_added = newGameKey in games
@@ -127,7 +126,7 @@ def test_all_players_join_game():
     assert dealerGameStatus == "Waiting for players", "Game status incorrect on start."
 
     if game_added:
-        gameKeys = cryptoRoulette.getDealerGameKeys(account)
+        gameKeys = cryptoRoulette.getDealerGameKeys(dealerAcct1)
         print(gameKeys)
 
         print("game added")
@@ -246,7 +245,6 @@ def test_all_players_join_game():
 
         (
             dealer,
-            e,
             ante,
             gameStatus,
             potAmount,

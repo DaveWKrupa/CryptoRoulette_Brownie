@@ -1,11 +1,18 @@
-from brownie import exceptions, CryptoRoulette
+from brownie import exceptions, network
 from scripts.deploy import deploy
-from scripts.helper_scripts import get_account
+from scripts.helper_scripts import get_account, LOCAL_BLOCKCHAIN_ENVIRONMENTS
 from web3 import Web3
 import pytest
 
 
 def test_join_submit_numbers():
+    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
+        return
+
+    high = 0
+    low = 1
+    odd = 0
+    even = 1
     #   dealer is going to join game after starting it
     # then 3 other players will join the game
     # a seventh player will try to join the game but will not be able to
@@ -15,10 +22,7 @@ def test_join_submit_numbers():
     playerAcct3 = get_account(index=2)
     playerAcct4 = get_account(index=3)
 
-    try:
-        cryptoRoulette = CryptoRoulette[-1]
-    except IndexError:
-        cryptoRoulette = deploy(dealerAcct1)
+    cryptoRoulette = deploy()
 
     dealerFees = cryptoRoulette.getDealerFeeBalance({"from": dealerAcct1})
     print("Dealer fees", dealerFees)
@@ -116,12 +120,14 @@ def test_join_submit_numbers():
             {"from": playerAcct4},
         )
 
-        (round, playerAcct4picks) = cryptoRoulette.getPlayerPicks(
-            newGameKey, playerAcct4
+        currentRound = 1
+
+        playerAcct4picks = cryptoRoulette.getPlayerPicks(
+            newGameKey, currentRound, playerAcct4
         )
         print("playerAcct4")
-        print(round, playerAcct4picks)
-        assert round == 1, "Incorrect round number"
+        print(playerAcct4picks)
+
         assert playerAcct4picks == (
             1,
             1,
@@ -149,11 +155,11 @@ def test_join_submit_numbers():
             {"from": playerAcct3},
         )
 
-        (round, playerAcct3picks) = cryptoRoulette.getPlayerPicks(
-            newGameKey, playerAcct3
+        playerAcct3picks = cryptoRoulette.getPlayerPicks(
+            newGameKey, currentRound, playerAcct3
         )
         print("playerAcct3")
-        print(round, playerAcct3picks)
+        print(playerAcct3picks)
         assert playerAcct3picks == (
             1,
             0,
@@ -181,11 +187,11 @@ def test_join_submit_numbers():
             {"from": playerAcct2},
         )
 
-        (round, playerAcct2picks) = cryptoRoulette.getPlayerPicks(
-            newGameKey, playerAcct2
+        playerAcct2picks = cryptoRoulette.getPlayerPicks(
+            newGameKey, currentRound, playerAcct2
         )
         print("playerAcct2")
-        print(round, playerAcct2picks)
+        print(playerAcct2picks)
         assert playerAcct2picks == (
             0,
             1,
@@ -200,15 +206,10 @@ def test_join_submit_numbers():
             14,
             15,
         ), "Incorrect numbers for player 2"
-        # dealer tries to spin wheel before all players submit numbers
-        # this should throw an error
-
-        with pytest.raises(exceptions.VirtualMachineError):
-            cryptoRoulette.spinWheel(newGameKey, {"from": dealerAcct1})
 
         highLowplayerAcct1 = 0
         oddEvenplayerAcct1 = 0
-        numbersplayerAcct1 = [2, 3, 5, 6, 8, 9, 12, 13, 15, 16]
+        numbersplayerAcct1 = [2, 3, 5, 6, 8, 9, 12, 13, 15, 19]
 
         cryptoRoulette.submitNumbers(
             newGameKey,
@@ -218,11 +219,11 @@ def test_join_submit_numbers():
             {"from": playerAcct1},
         )
 
-        (round, playerAcct1picks) = cryptoRoulette.getPlayerPicks(
-            newGameKey, playerAcct1
+        playerAcct1picks = cryptoRoulette.getPlayerPicks(
+            newGameKey, currentRound, playerAcct1
         )
         print("playerAcct1")
-        print(round, playerAcct1picks)
+        print(playerAcct1picks)
         assert playerAcct1picks == (
             0,
             0,
@@ -235,5 +236,12 @@ def test_join_submit_numbers():
             12,
             13,
             15,
-            16,
-        ), "Incorrect numbers for player 2"
+            19,
+        ), "Incorrect numbers for player 1"
+
+        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        print(playerAddresses)
+        print(playerStacks)
+
+        print("winning number")
+        print(cryptoRoulette.getWinningNumber(newGameKey, 1))

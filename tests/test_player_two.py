@@ -1,11 +1,13 @@
-from brownie import exceptions, CryptoRoulette
+from brownie import exceptions, network
 from scripts.deploy import deploy
-from scripts.helper_scripts import get_account
+from scripts.helper_scripts import get_account, LOCAL_BLOCKCHAIN_ENVIRONMENTS
 from web3 import Web3
 import pytest
 
 
 def test_join_end_game_and_withdrawal():
+    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
+        return
     #   dealer is going to join game after starting it
     # then 3 other players will join the game
     # a seventh player will try to join the game but will not be able to
@@ -15,10 +17,7 @@ def test_join_end_game_and_withdrawal():
     playerAcct3 = get_account(index=2)
     playerAcct4 = get_account(index=3)
 
-    try:
-        cryptoRoulette = CryptoRoulette[-1]
-    except IndexError:
-        cryptoRoulette = deploy(dealerAcct1)
+    cryptoRoulette = deploy()
 
     dealerFees = cryptoRoulette.getDealerFeeBalance({"from": dealerAcct1})
     print("Dealer fees", dealerFees)
@@ -71,7 +70,7 @@ def test_join_end_game_and_withdrawal():
 
         # player 4 should not be able to end the game
         with pytest.raises(exceptions.VirtualMachineError):
-            cryptoRoulette.endGame({"from": playerAcct4})
+            cryptoRoulette.endGame(newGameKey, {"from": playerAcct4})
 
         (
             dealer,
@@ -98,7 +97,7 @@ def test_join_end_game_and_withdrawal():
             cryptoRoulette.withdrawalStack(newGameKey, {"from": playerAcct4})
 
         # end the game using the dealer account
-        cryptoRoulette.endGame({"from": dealerAcct1})
+        cryptoRoulette.endGame(newGameKey, {"from": dealerAcct1})
 
         (
             dealer,
