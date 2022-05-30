@@ -2,11 +2,11 @@ from brownie import CryptoRoulette
 from scripts.helper_scripts import get_account
 
 
-def test_player_three_join_game():
+def test_player_one_join_game():
     #   dealer is going to join game after starting it
     # everything should work
 
-    account = get_account(configkey="private_key_player3")
+    account = get_account(configkey="private_key_player1")
 
     cryptoRoulette = CryptoRoulette[-1]
     print(cryptoRoulette)
@@ -20,11 +20,11 @@ def test_player_three_join_game():
     )
     print(joinGameTransaction)
 
-    player = joinGameTransaction.events["playerJoined"]["player"]
-    gameKey = joinGameTransaction.events["playerJoined"]["gameKey"]
-    timestamp = joinGameTransaction.events["playerJoined"]["timeStamp"]
-    print("join event")
-    print(player, gameKey, timestamp)
+    # player = joinGameTransaction.events["playerJoined"]["player"]
+    # gameKey = joinGameTransaction.events["playerJoined"]["gameKey"]
+    # timestamp = joinGameTransaction.events["playerJoined"]["timeStamp"]
+    # print("join event")
+    # print(player, gameKey, timestamp)
 
     # (
     #     dealer,

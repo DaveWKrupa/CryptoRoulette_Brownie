@@ -1,13 +1,13 @@
-from brownie import exceptions, network
+from brownie import network
 from scripts.deploy import deploy
-from scripts.helper_scripts import get_account, LOCAL_BLOCKCHAIN_ENVIRONMENTS
+from scripts.helper_scripts import (
+    get_account,
+    LOCAL_BLOCKCHAIN_ENVIRONMENTS,
+)
 from web3 import Web3
-import pytest
 
 
 def test_full_game():
-    if network.show_active() not in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        return
 
     high = 0
     low = 1
@@ -16,33 +16,88 @@ def test_full_game():
     #   dealer is going to join game after starting it
     # then 3 other players will join the game
     # a seventh player will try to join the game but will not be able to
-    dealerAcct1 = get_account(index=0)
-    playerAcct1 = dealerAcct1  # dealer is also player 1
-    playerAcct2 = get_account(index=1)
-    playerAcct3 = get_account(index=2)
-    playerAcct4 = get_account(index=3)
+    # dealerAcct1 = get_account(index=0)
+    # playerAcct1 = dealerAcct1  # dealer is also player 1
+    # playerAcct2 = get_account(index=1)
+    # playerAcct3 = get_account(index=2)
+    # playerAcct4 = get_account(index=3)
 
-    cryptoRoulette = deploy()
+    dealerAcct1 = get_account(configkey="private_key_player1")
+    playerAcct1 = dealerAcct1  # dealer is also player 1
+    playerAcct2 = get_account(configkey="private_key_player2")
+    playerAcct3 = get_account(configkey="private_key_player3")
+    playerAcct4 = get_account(configkey="private_key_player4")
+
+    crypto_roulette = deploy()
 
     newGameKey = "mynewgamekey"  # needs to be changed each run on same contract
-    ante = Web3.toWei(0.01, "ether")
-    cryptoRoulette.startNewGame(ante, newGameKey, {"from": dealerAcct1, "value": ante})
-    games = cryptoRoulette.getGames(True)
+    ante = Web3.toWei(0.001, "ether")
+    start_game_tx = crypto_roulette.startNewGame(
+        ante, newGameKey, {"from": dealerAcct1, "value": ante}
+    )
+    newgamedealer = start_game_tx.events["newGameStarted"]["dealer"]
+    newgamegameKey = start_game_tx.events["newGameStarted"]["gameKey"]
+    newgametimeStamp = start_game_tx.events["newGameStarted"]["timeStamp"]
+    newgameante = start_game_tx.events["newGameStarted"]["ante"]
+    print("new game event / change status event")
+    newstatus = start_game_tx.events["gameStatusChanged"]["newStatus"]
+    print(newgamedealer, newgamegameKey, newgametimeStamp, newgameante, newstatus)
+
+    games = crypto_roulette.getGames(True)
     game_added = newGameKey in games
     if game_added:
-        dealerFees = cryptoRoulette.getDealerFeeBalance({"from": dealerAcct1})
-        print("Dealer fees", dealerFees)
+        dealerFees = crypto_roulette.getDealerFeeBalance({"from": dealerAcct1})
+        print("Dealer fee balance", dealerFees)
 
-        contractBalance = cryptoRoulette.getCryptoRouletteBalance({"from": dealerAcct1})
+        contractBalance = crypto_roulette.getCryptoRouletteBalance(
+            {"from": dealerAcct1}
+        )
         print("contractbalance", contractBalance)
 
-        fee = cryptoRoulette.getPlayerFee(newGameKey)
-        cryptoRoulette.joinGame(newGameKey, {"from": playerAcct1, "value": fee})
-        cryptoRoulette.joinGame(newGameKey, {"from": playerAcct2, "value": fee})
-        cryptoRoulette.joinGame(newGameKey, {"from": playerAcct3, "value": fee})
-        cryptoRoulette.joinGame(newGameKey, {"from": playerAcct4, "value": fee})
+        fee = crypto_roulette.getPlayerFee(newGameKey)
+        joinGameTransaction = crypto_roulette.joinGame(
+            newGameKey, {"from": playerAcct1, "value": fee}
+        )
 
-        contractBalance = cryptoRoulette.getCryptoRouletteBalance({"from": dealerAcct1})
+        player = joinGameTransaction.events["playerJoined"]["player"]
+        gameKey = joinGameTransaction.events["playerJoined"]["gameKey"]
+        timestamp = joinGameTransaction.events["playerJoined"]["timeStamp"]
+        print("join event 1")
+        print(player, gameKey, timestamp)
+
+        joinGameTransaction = crypto_roulette.joinGame(
+            newGameKey, {"from": playerAcct2, "value": fee}
+        )
+
+        player = joinGameTransaction.events["playerJoined"]["player"]
+        gameKey = joinGameTransaction.events["playerJoined"]["gameKey"]
+        timestamp = joinGameTransaction.events["playerJoined"]["timeStamp"]
+        print("join event 1")
+        print(player, gameKey, timestamp)
+
+        joinGameTransaction = crypto_roulette.joinGame(
+            newGameKey, {"from": playerAcct3, "value": fee}
+        )
+
+        player = joinGameTransaction.events["playerJoined"]["player"]
+        gameKey = joinGameTransaction.events["playerJoined"]["gameKey"]
+        timestamp = joinGameTransaction.events["playerJoined"]["timeStamp"]
+        print("join event 1")
+        print(player, gameKey, timestamp)
+
+        joinGameTransaction = crypto_roulette.joinGame(
+            newGameKey, {"from": playerAcct4, "value": fee}
+        )
+
+        player = joinGameTransaction.events["playerJoined"]["player"]
+        gameKey = joinGameTransaction.events["playerJoined"]["gameKey"]
+        timestamp = joinGameTransaction.events["playerJoined"]["timeStamp"]
+        print("join event 1")
+        print(player, gameKey, timestamp)
+
+        contractBalance = crypto_roulette.getCryptoRouletteBalance(
+            {"from": dealerAcct1}
+        )
         print("contractbalance", contractBalance)
 
         (
@@ -52,7 +107,7 @@ def test_full_game():
             potAmount,
             playerCount,
             currentRound,
-        ) = cryptoRoulette.getGameInfo(newGameKey)
+        ) = crypto_roulette.getGameInfo(newGameKey)
 
         print(
             dealer,
@@ -64,7 +119,12 @@ def test_full_game():
         )
 
         # dealer is setting game status to in progress
-        cryptoRoulette.setGameToInProgress(newGameKey, {"from": dealerAcct1})
+        set_in_progress_tx = crypto_roulette.setGameToInProgress(
+            newGameKey, {"from": dealerAcct1}
+        )
+
+        newstatus = set_in_progress_tx.events["gameStatusChanged"]["newStatus"]
+        print("set inprogress status event", newstatus)
 
         (
             dealer,
@@ -73,7 +133,7 @@ def test_full_game():
             potAmount,
             playerCount,
             currentRound,
-        ) = cryptoRoulette.getGameInfo(newGameKey)
+        ) = crypto_roulette.getGameInfo(newGameKey)
 
         print(
             dealer,
@@ -84,7 +144,7 @@ def test_full_game():
             currentRound,
         )
 
-        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        (playerAddresses, playerStacks) = crypto_roulette.getGamePlayers(newGameKey)
         print("address and stack before game")
         print(playerAddresses)
         print(playerStacks)
@@ -112,7 +172,7 @@ def test_full_game():
 
         # player 1
 
-        cryptoRoulette.submitNumbers(
+        submitTransaction = crypto_roulette.submitNumbers(
             newGameKey,
             acct1_rnd1_highlow,
             acct1_rnd1_oddeven,
@@ -120,7 +180,7 @@ def test_full_game():
             {"from": playerAcct1},
         )
 
-        playerAcct1picks = cryptoRoulette.getPlayerPicks(
+        playerAcct1picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct1
         )
         print("playerAcct1 r1")
@@ -128,7 +188,7 @@ def test_full_game():
 
         # player 2
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct2_rnd1_highlow,
             acct2_rnd1_oddeven,
@@ -136,7 +196,7 @@ def test_full_game():
             {"from": playerAcct2},
         )
 
-        playerAcct2picks = cryptoRoulette.getPlayerPicks(
+        playerAcct2picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct2
         )
         print("playerAcct2 r1")
@@ -144,7 +204,7 @@ def test_full_game():
 
         # player 3
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct3_rnd1_highlow,
             acct3_rnd1_oddeven,
@@ -152,7 +212,7 @@ def test_full_game():
             {"from": playerAcct3},
         )
 
-        playerAcct3picks = cryptoRoulette.getPlayerPicks(
+        playerAcct3picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct3
         )
         print("playerAcct3 r1")
@@ -160,7 +220,7 @@ def test_full_game():
 
         # player 4
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct4_rnd1_highlow,
             acct4_rnd1_oddeven,
@@ -168,16 +228,16 @@ def test_full_game():
             {"from": playerAcct4},
         )
 
-        playerAcct4picks = cryptoRoulette.getPlayerPicks(
+        playerAcct4picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct4
         )
         print("playerAcct4 r1")
         print(playerAcct4picks)
 
         print("winning number r1")
-        print(cryptoRoulette.getWinningNumber(newGameKey, 1))
+        print(crypto_roulette.getWinningNumber(newGameKey, 1))
 
-        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        (playerAddresses, playerStacks) = crypto_roulette.getGamePlayers(newGameKey)
         print("address and stack r1")
         print(playerAddresses)
         print(playerStacks)
@@ -205,7 +265,7 @@ def test_full_game():
 
         # player 1
 
-        cryptoRoulette.submitNumbers(
+        submit1_tx = crypto_roulette.submitNumbers(
             newGameKey,
             acct1_rnd2_highlow,
             acct1_rnd2_oddeven,
@@ -213,7 +273,19 @@ def test_full_game():
             {"from": playerAcct1},
         )
 
-        playerAcct1picks = cryptoRoulette.getPlayerPicks(
+        playersubmit = submit1_tx.events["playerSubmittedNumbers"]["player"]
+        highLow = submit1_tx.events["playerSubmittedNumbers"]["highLow"]
+        oddeven = submit1_tx.events["playerSubmittedNumbers"]["oddEven"]
+        numbers = submit1_tx.events["playerSubmittedNumbers"]["numbers"]
+        playersStack = submit1_tx.events["playerSubmittedNumbers"]["playersStack"]
+
+        print("player submit 1")
+        print(playersubmit)
+        print(highLow, oddeven)
+        print(numbers)
+        print(playersStack)
+
+        playerAcct1picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct1
         )
         print("playerAcct1 r2")
@@ -221,7 +293,7 @@ def test_full_game():
 
         # player 2
 
-        cryptoRoulette.submitNumbers(
+        submit2_tx = crypto_roulette.submitNumbers(
             newGameKey,
             acct2_rnd2_highlow,
             acct2_rnd2_oddeven,
@@ -229,7 +301,19 @@ def test_full_game():
             {"from": playerAcct2},
         )
 
-        playerAcct2picks = cryptoRoulette.getPlayerPicks(
+        playersubmit = submit2_tx.events["playerSubmittedNumbers"]["player"]
+        highLow = submit2_tx.events["playerSubmittedNumbers"]["highLow"]
+        oddeven = submit2_tx.events["playerSubmittedNumbers"]["oddEven"]
+        numbers = submit2_tx.events["playerSubmittedNumbers"]["numbers"]
+        playersStack = submit2_tx.events["playerSubmittedNumbers"]["playersStack"]
+
+        print("player submit 2")
+        print(playersubmit)
+        print(highLow, oddeven)
+        print(numbers)
+        print(playersStack)
+
+        playerAcct2picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct2
         )
         print("playerAcct2 r2")
@@ -237,7 +321,7 @@ def test_full_game():
 
         # player 3
 
-        cryptoRoulette.submitNumbers(
+        submit3_tx = crypto_roulette.submitNumbers(
             newGameKey,
             acct3_rnd2_highlow,
             acct3_rnd2_oddeven,
@@ -245,7 +329,19 @@ def test_full_game():
             {"from": playerAcct3},
         )
 
-        playerAcct3picks = cryptoRoulette.getPlayerPicks(
+        playersubmit = submit3_tx.events["playerSubmittedNumbers"]["player"]
+        highLow = submit3_tx.events["playerSubmittedNumbers"]["highLow"]
+        oddeven = submit3_tx.events["playerSubmittedNumbers"]["oddEven"]
+        numbers = submit3_tx.events["playerSubmittedNumbers"]["numbers"]
+        playersStack = submit3_tx.events["playerSubmittedNumbers"]["playersStack"]
+
+        print("player submit 3")
+        print(playersubmit)
+        print(highLow, oddeven)
+        print(numbers)
+        print(playersStack)
+
+        playerAcct3picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct3
         )
         print("playerAcct3 r2")
@@ -253,7 +349,7 @@ def test_full_game():
 
         # player 4
 
-        cryptoRoulette.submitNumbers(
+        submit4_tx = crypto_roulette.submitNumbers(
             newGameKey,
             acct4_rnd2_highlow,
             acct4_rnd2_oddeven,
@@ -261,16 +357,31 @@ def test_full_game():
             {"from": playerAcct4},
         )
 
-        playerAcct4picks = cryptoRoulette.getPlayerPicks(
+        playersubmit = submit4_tx.events["playerSubmittedNumbers"]["player"]
+        highLow = submit4_tx.events["playerSubmittedNumbers"]["highLow"]
+        oddeven = submit4_tx.events["playerSubmittedNumbers"]["oddEven"]
+        numbers = submit4_tx.events["playerSubmittedNumbers"]["numbers"]
+        playersStack = submit4_tx.events["playerSubmittedNumbers"]["playersStack"]
+
+        print("player submit 4")
+        print(playersubmit)
+        print(highLow, oddeven)
+        print(numbers)
+        print(playersStack)
+
+        newstatus = submit4_tx.events["gameStatusChanged"]["newStatus"]
+        print("new game status event", newstatus)
+
+        playerAcct4picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct4
         )
         print("playerAcct4 r2")
         print(playerAcct4picks)
 
         print("winning number r2")
-        print(cryptoRoulette.getWinningNumber(newGameKey, 1))
+        print(crypto_roulette.getWinningNumber(newGameKey, 1))
 
-        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        (playerAddresses, playerStacks) = crypto_roulette.getGamePlayers(newGameKey)
         print("address and stack r2")
         print(playerAddresses)
         print(playerStacks)
@@ -297,7 +408,7 @@ def test_full_game():
 
         # player 1
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct1_rnd3_highlow,
             acct1_rnd3_oddeven,
@@ -305,7 +416,7 @@ def test_full_game():
             {"from": playerAcct1},
         )
 
-        playerAcct1picks = cryptoRoulette.getPlayerPicks(
+        playerAcct1picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct1
         )
         print("playerAcct1 r3")
@@ -313,7 +424,7 @@ def test_full_game():
 
         # player 2
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct2_rnd3_highlow,
             acct2_rnd3_oddeven,
@@ -321,7 +432,7 @@ def test_full_game():
             {"from": playerAcct2},
         )
 
-        playerAcct2picks = cryptoRoulette.getPlayerPicks(
+        playerAcct2picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct2
         )
         print("playerAcct2 r3")
@@ -329,7 +440,7 @@ def test_full_game():
 
         # player 3
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct3_rnd3_highlow,
             acct3_rnd3_oddeven,
@@ -337,7 +448,7 @@ def test_full_game():
             {"from": playerAcct3},
         )
 
-        playerAcct3picks = cryptoRoulette.getPlayerPicks(
+        playerAcct3picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct3
         )
         print("playerAcct3 r3")
@@ -345,7 +456,7 @@ def test_full_game():
 
         # player 4
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct4_rnd3_highlow,
             acct4_rnd3_oddeven,
@@ -353,16 +464,16 @@ def test_full_game():
             {"from": playerAcct4},
         )
 
-        playerAcct4picks = cryptoRoulette.getPlayerPicks(
+        playerAcct4picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct4
         )
         print("playerAcct4 r3")
         print(playerAcct4picks)
 
         print("winning number r3")
-        print(cryptoRoulette.getWinningNumber(newGameKey, 1))
+        print(crypto_roulette.getWinningNumber(newGameKey, 1))
 
-        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        (playerAddresses, playerStacks) = crypto_roulette.getGamePlayers(newGameKey)
         print("address and stack r3")
         print(playerAddresses)
         print(playerStacks)
@@ -390,7 +501,7 @@ def test_full_game():
 
         # player 1
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct1_rnd4_highlow,
             acct1_rnd4_oddeven,
@@ -398,7 +509,7 @@ def test_full_game():
             {"from": playerAcct1},
         )
 
-        playerAcct1picks = cryptoRoulette.getPlayerPicks(
+        playerAcct1picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct1
         )
         print("playerAcct1 r4")
@@ -406,7 +517,7 @@ def test_full_game():
 
         # player 2
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct2_rnd4_highlow,
             acct2_rnd4_oddeven,
@@ -414,7 +525,7 @@ def test_full_game():
             {"from": playerAcct2},
         )
 
-        playerAcct2picks = cryptoRoulette.getPlayerPicks(
+        playerAcct2picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct2
         )
         print("playerAcct2 r4")
@@ -422,7 +533,7 @@ def test_full_game():
 
         # player 3
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct3_rnd4_highlow,
             acct3_rnd4_oddeven,
@@ -430,7 +541,7 @@ def test_full_game():
             {"from": playerAcct3},
         )
 
-        playerAcct3picks = cryptoRoulette.getPlayerPicks(
+        playerAcct3picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct3
         )
         print("playerAcct3 r4")
@@ -438,7 +549,7 @@ def test_full_game():
 
         # player 4
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct4_rnd4_highlow,
             acct4_rnd4_oddeven,
@@ -446,16 +557,16 @@ def test_full_game():
             {"from": playerAcct4},
         )
 
-        playerAcct4picks = cryptoRoulette.getPlayerPicks(
+        playerAcct4picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct4
         )
         print("playerAcct4 r4")
         print(playerAcct4picks)
 
         print("winning number r4")
-        print(cryptoRoulette.getWinningNumber(newGameKey, 1))
+        print(crypto_roulette.getWinningNumber(newGameKey, 1))
 
-        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        (playerAddresses, playerStacks) = crypto_roulette.getGamePlayers(newGameKey)
         print("address and stack r4")
         print(playerAddresses)
         print(playerStacks)
@@ -483,7 +594,7 @@ def test_full_game():
 
         # player 1
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct1_rnd5_highlow,
             acct1_rnd5_oddeven,
@@ -491,7 +602,7 @@ def test_full_game():
             {"from": playerAcct1},
         )
 
-        playerAcct1picks = cryptoRoulette.getPlayerPicks(
+        playerAcct1picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct1
         )
         print("playerAcct1 r5")
@@ -499,7 +610,7 @@ def test_full_game():
 
         # player 2
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct2_rnd5_highlow,
             acct2_rnd5_oddeven,
@@ -507,7 +618,7 @@ def test_full_game():
             {"from": playerAcct2},
         )
 
-        playerAcct2picks = cryptoRoulette.getPlayerPicks(
+        playerAcct2picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct2
         )
         print("playerAcct2 r5")
@@ -515,7 +626,7 @@ def test_full_game():
 
         # player 3
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct3_rnd5_highlow,
             acct3_rnd5_oddeven,
@@ -523,7 +634,7 @@ def test_full_game():
             {"from": playerAcct3},
         )
 
-        playerAcct3picks = cryptoRoulette.getPlayerPicks(
+        playerAcct3picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct3
         )
         print("playerAcct3 r5")
@@ -531,7 +642,7 @@ def test_full_game():
 
         # player 4
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct4_rnd5_highlow,
             acct4_rnd5_oddeven,
@@ -539,16 +650,16 @@ def test_full_game():
             {"from": playerAcct4},
         )
 
-        playerAcct4picks = cryptoRoulette.getPlayerPicks(
+        playerAcct4picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct4
         )
         print("playerAcct4 r5")
         print(playerAcct4picks)
 
         print("winning number r5")
-        print(cryptoRoulette.getWinningNumber(newGameKey, 1))
+        print(crypto_roulette.getWinningNumber(newGameKey, 1))
 
-        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        (playerAddresses, playerStacks) = crypto_roulette.getGamePlayers(newGameKey)
         print("address and stack r")
         print(playerAddresses)
         print(playerStacks)
@@ -576,7 +687,7 @@ def test_full_game():
 
         # player 1
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct1_rnd6_highlow,
             acct1_rnd6_oddeven,
@@ -584,7 +695,7 @@ def test_full_game():
             {"from": playerAcct1},
         )
 
-        playerAcct1picks = cryptoRoulette.getPlayerPicks(
+        playerAcct1picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct1
         )
         print("playerAcct1 r6")
@@ -592,7 +703,7 @@ def test_full_game():
 
         # player 2
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct2_rnd6_highlow,
             acct2_rnd6_oddeven,
@@ -600,7 +711,7 @@ def test_full_game():
             {"from": playerAcct2},
         )
 
-        playerAcct2picks = cryptoRoulette.getPlayerPicks(
+        playerAcct2picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct2
         )
         print("playerAcct2 r6")
@@ -608,7 +719,7 @@ def test_full_game():
 
         # player 3
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct3_rnd6_highlow,
             acct3_rnd6_oddeven,
@@ -616,7 +727,7 @@ def test_full_game():
             {"from": playerAcct3},
         )
 
-        playerAcct3picks = cryptoRoulette.getPlayerPicks(
+        playerAcct3picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct3
         )
         print("playerAcct3 r6")
@@ -624,7 +735,7 @@ def test_full_game():
 
         # player 4
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct4_rnd6_highlow,
             acct4_rnd6_oddeven,
@@ -632,16 +743,16 @@ def test_full_game():
             {"from": playerAcct4},
         )
 
-        playerAcct4picks = cryptoRoulette.getPlayerPicks(
+        playerAcct4picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct4
         )
         print("playerAcct4 r6")
         print(playerAcct4picks)
 
         print("winning number r6")
-        print(cryptoRoulette.getWinningNumber(newGameKey, 1))
+        print(crypto_roulette.getWinningNumber(newGameKey, 1))
 
-        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        (playerAddresses, playerStacks) = crypto_roulette.getGamePlayers(newGameKey)
         print("address and stack r6")
         print(playerAddresses)
         print(playerStacks)
@@ -668,7 +779,7 @@ def test_full_game():
         acct4_rnd7_numbers = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
         # player 1
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct1_rnd7_highlow,
             acct1_rnd7_oddeven,
@@ -676,7 +787,7 @@ def test_full_game():
             {"from": playerAcct1},
         )
 
-        playerAcct1picks = cryptoRoulette.getPlayerPicks(
+        playerAcct1picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct1
         )
         print("playerAcct1 r7")
@@ -684,7 +795,7 @@ def test_full_game():
 
         # player 2
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct2_rnd7_highlow,
             acct2_rnd7_oddeven,
@@ -692,7 +803,7 @@ def test_full_game():
             {"from": playerAcct2},
         )
 
-        playerAcct2picks = cryptoRoulette.getPlayerPicks(
+        playerAcct2picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct2
         )
         print("playerAcct2 r7")
@@ -700,7 +811,7 @@ def test_full_game():
 
         # player 3
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct3_rnd7_highlow,
             acct3_rnd7_oddeven,
@@ -708,7 +819,7 @@ def test_full_game():
             {"from": playerAcct3},
         )
 
-        playerAcct3picks = cryptoRoulette.getPlayerPicks(
+        playerAcct3picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct3
         )
         print("playerAcct3 r7")
@@ -716,7 +827,7 @@ def test_full_game():
 
         # player 4
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct4_rnd7_highlow,
             acct4_rnd7_oddeven,
@@ -724,16 +835,16 @@ def test_full_game():
             {"from": playerAcct4},
         )
 
-        playerAcct4picks = cryptoRoulette.getPlayerPicks(
+        playerAcct4picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct4
         )
         print("playerAcct4 r7")
         print(playerAcct4picks)
 
         print("winning number r7")
-        print(cryptoRoulette.getWinningNumber(newGameKey, 1))
+        print(crypto_roulette.getWinningNumber(newGameKey, 1))
 
-        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        (playerAddresses, playerStacks) = crypto_roulette.getGamePlayers(newGameKey)
         print("address and stack r7")
         print(playerAddresses)
         print(playerStacks)
@@ -761,7 +872,7 @@ def test_full_game():
 
         # player 1
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct1_rnd8_highlow,
             acct1_rnd8_oddeven,
@@ -769,7 +880,7 @@ def test_full_game():
             {"from": playerAcct1},
         )
 
-        playerAcct1picks = cryptoRoulette.getPlayerPicks(
+        playerAcct1picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct1
         )
         print("playerAcct1 r8")
@@ -777,7 +888,7 @@ def test_full_game():
 
         # player 2
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct2_rnd8_highlow,
             acct2_rnd8_oddeven,
@@ -785,7 +896,7 @@ def test_full_game():
             {"from": playerAcct2},
         )
 
-        playerAcct2picks = cryptoRoulette.getPlayerPicks(
+        playerAcct2picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct2
         )
         print("playerAcct2 r8")
@@ -793,7 +904,7 @@ def test_full_game():
 
         # player 3
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct3_rnd8_highlow,
             acct3_rnd8_oddeven,
@@ -801,7 +912,7 @@ def test_full_game():
             {"from": playerAcct3},
         )
 
-        playerAcct3picks = cryptoRoulette.getPlayerPicks(
+        playerAcct3picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct3
         )
         print("playerAcct3 r8")
@@ -809,7 +920,7 @@ def test_full_game():
 
         # player 4
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct4_rnd8_highlow,
             acct4_rnd8_oddeven,
@@ -817,16 +928,16 @@ def test_full_game():
             {"from": playerAcct4},
         )
 
-        playerAcct4picks = cryptoRoulette.getPlayerPicks(
+        playerAcct4picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct4
         )
         print("playerAcct4 r8")
         print(playerAcct4picks)
 
         print("winning number r8")
-        print(cryptoRoulette.getWinningNumber(newGameKey, 1))
+        print(crypto_roulette.getWinningNumber(newGameKey, 1))
 
-        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        (playerAddresses, playerStacks) = crypto_roulette.getGamePlayers(newGameKey)
         print("address and stack r8")
         print(playerAddresses)
         print(playerStacks)
@@ -854,7 +965,7 @@ def test_full_game():
 
         # player 1
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct1_rnd9_highlow,
             acct1_rnd9_oddeven,
@@ -862,7 +973,7 @@ def test_full_game():
             {"from": playerAcct1},
         )
 
-        playerAcct1picks = cryptoRoulette.getPlayerPicks(
+        playerAcct1picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct1
         )
         print("playerAcct1 r9")
@@ -870,7 +981,7 @@ def test_full_game():
 
         # player 2
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct2_rnd9_highlow,
             acct2_rnd9_oddeven,
@@ -878,7 +989,7 @@ def test_full_game():
             {"from": playerAcct2},
         )
 
-        playerAcct2picks = cryptoRoulette.getPlayerPicks(
+        playerAcct2picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct2
         )
         print("playerAcct2 r9")
@@ -886,7 +997,7 @@ def test_full_game():
 
         # player 3
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct3_rnd9_highlow,
             acct3_rnd9_oddeven,
@@ -894,7 +1005,7 @@ def test_full_game():
             {"from": playerAcct3},
         )
 
-        playerAcct3picks = cryptoRoulette.getPlayerPicks(
+        playerAcct3picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct3
         )
         print("playerAcct3 r9")
@@ -902,7 +1013,7 @@ def test_full_game():
 
         # player 4
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct4_rnd9_highlow,
             acct4_rnd9_oddeven,
@@ -910,16 +1021,16 @@ def test_full_game():
             {"from": playerAcct4},
         )
 
-        playerAcct4picks = cryptoRoulette.getPlayerPicks(
+        playerAcct4picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct4
         )
         print("playerAcct4 r9")
         print(playerAcct4picks)
 
         print("winning number r9")
-        print(cryptoRoulette.getWinningNumber(newGameKey, 1))
+        print(crypto_roulette.getWinningNumber(newGameKey, 1))
 
-        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        (playerAddresses, playerStacks) = crypto_roulette.getGamePlayers(newGameKey)
         print("address and stack r9")
         print(playerAddresses)
         print(playerStacks)
@@ -947,7 +1058,7 @@ def test_full_game():
 
         # player 1
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct1_rnd10_highlow,
             acct1_rnd10_oddeven,
@@ -955,7 +1066,7 @@ def test_full_game():
             {"from": playerAcct1},
         )
 
-        playerAcct1picks = cryptoRoulette.getPlayerPicks(
+        playerAcct1picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct1
         )
         print("playerAcct1 r10")
@@ -963,7 +1074,7 @@ def test_full_game():
 
         # player 2
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct2_rnd10_highlow,
             acct2_rnd10_oddeven,
@@ -971,7 +1082,7 @@ def test_full_game():
             {"from": playerAcct2},
         )
 
-        playerAcct2picks = cryptoRoulette.getPlayerPicks(
+        playerAcct2picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct2
         )
         print("playerAcct2 r10")
@@ -979,7 +1090,7 @@ def test_full_game():
 
         # player 3
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct3_rnd10_highlow,
             acct3_rnd10_oddeven,
@@ -987,7 +1098,7 @@ def test_full_game():
             {"from": playerAcct3},
         )
 
-        playerAcct3picks = cryptoRoulette.getPlayerPicks(
+        playerAcct3picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct3
         )
         print("playerAcct3 r10")
@@ -995,7 +1106,7 @@ def test_full_game():
 
         # player 4
 
-        cryptoRoulette.submitNumbers(
+        crypto_roulette.submitNumbers(
             newGameKey,
             acct4_rnd10_highlow,
             acct4_rnd10_oddeven,
@@ -1003,16 +1114,16 @@ def test_full_game():
             {"from": playerAcct4},
         )
 
-        playerAcct4picks = cryptoRoulette.getPlayerPicks(
+        playerAcct4picks = crypto_roulette.getPlayerPicks(
             newGameKey, currentRound, playerAcct4
         )
         print("playerAcct4 r10")
         print(playerAcct4picks)
 
         print("winning number r10")
-        print(cryptoRoulette.getWinningNumber(newGameKey, 1))
+        print(crypto_roulette.getWinningNumber(newGameKey, 1))
 
-        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        (playerAddresses, playerStacks) = crypto_roulette.getGamePlayers(newGameKey)
         print("address and stack r10")
         print(playerAddresses)
         print(playerStacks)
@@ -1027,7 +1138,7 @@ def test_full_game():
             winAmount,
             winRound,
             winnerStack,
-        ) = cryptoRoulette.getWinnersAndAmounts()
+        ) = crypto_roulette.getWinnersAndAmounts()
         winnersLength = len(winners)
         for index in range(winnersLength):
             print("***********")
@@ -1045,7 +1156,7 @@ def test_full_game():
             potAmount,
             playerCount,
             currentRound,
-        ) = cryptoRoulette.getGameInfo(newGameKey)
+        ) = crypto_roulette.getGameInfo(newGameKey)
 
         print(
             dealer,
@@ -1056,7 +1167,7 @@ def test_full_game():
             currentRound,
         )
 
-        (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+        (playerAddresses, playerStacks) = crypto_roulette.getGamePlayers(newGameKey)
         print("address and stack after game")
         print(playerAddresses)
         print(playerStacks)

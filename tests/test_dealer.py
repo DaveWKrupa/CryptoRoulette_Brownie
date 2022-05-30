@@ -2,6 +2,9 @@ from brownie import exceptions, CryptoRoulette, network
 from scripts.deploy import deploy
 from scripts.helper_scripts import get_account, LOCAL_BLOCKCHAIN_ENVIRONMENTS
 from web3 import Web3
+from datetime import datetime
+
+# 0xB439Bf7bC29Ce76903CF2a4B547A87d8dfcbe605 rinkeby
 
 
 def test_deploy():
@@ -9,19 +12,29 @@ def test_deploy():
     print(cryptoRoulette)
 
 
-def test_dealer_start_end_game_success():
+def test_dealer_start_game():
     # everything should work
 
-    if network.show_active() in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        account = get_account(index=0)
-    else:
-        account = get_account(configkey="private_key_player1")
+    account = get_account(configkey="private_key_player1")
 
-    cryptoRoulette = deploy()
+    cryptoRoulette = CryptoRoulette[-1]  # get the latest published
+    print(cryptoRoulette)
 
-    newGameKey = "mynewgamekey"  # needs to be changed each run on same contract
-    ante = Web3.toWei(0.01, "ether")
-    cryptoRoulette.startNewGame(ante, newGameKey, {"from": account, "value": ante})
+    newGameKey = (
+        str(account)[:5]
+        + "..."
+        + str(account)[len(str(account)) - 5 : len(str(account))]
+        + "_"
+        + str(datetime.utcnow())
+    )
+
+    print("newGameKey")
+    print(newGameKey)
+
+    ante = Web3.toWei(0.001, "ether")
+    start_game_tx = cryptoRoulette.startNewGame(
+        ante, newGameKey, {"from": account, "value": ante}
+    )
     games = cryptoRoulette.getGames(True)
     print("games")
     print(games)
@@ -34,49 +47,48 @@ def test_dealer_start_end_game_success():
         "Game status incorrect on start.",
     )
     if game_added:
-        cryptoRoulette.endGame(newGameKey, {"from": account})
-        games = cryptoRoulette.getGames(True)
-        print("games")
-        print(games)
-        assert (games == tuple(), "Games array still has active game.")
-        dealerGameStatus = cryptoRoulette.getGameStatus(newGameKey)
-        print(dealerGameStatus)
-        assert (dealerGameStatus == "Game ended", "Game status incorrect on end.")
-        (players, stacks) = cryptoRoulette.getGamePlayers(newGameKey)
-        print(players)
-        print(stacks)
+        print("game added")
+
+        newgamedealer = start_game_tx.events["newGameStarted"]["dealer"]
+        newgamegameKey = start_game_tx.events["newGameStarted"]["gameKey"]
+        newgametimeStamp = start_game_tx.events["newGameStarted"]["timeStamp"]
+        newgameante = start_game_tx.events["newGameStarted"]["ante"]
+        print("new game event / change status event")
+        newstatus = start_game_tx.events["gameStatusChanged"]["newStatus"]
+        print(newgamedealer, newgamegameKey, newgametimeStamp, newgameante, newstatus)
 
 
-def test_dealer_start_two_games():
-    # starting the first game should work
-    # starting the second game should not
-
-    if network.show_active() in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        account = get_account(index=0)
-    else:
-        account = get_account(configkey="private_key_player1")
-
-    cryptoRoulette = deploy()
-
-    newGameKey = "mynewgamekey"  # needs to be changed each run on same contract
-    ante = Web3.toWei(0.01, "ether")
-    cryptoRoulette.startNewGame(ante, newGameKey, {"from": account, "value": ante})
+def test_get_games():
+    cryptoRoulette = CryptoRoulette[-1]  # get the latest published
     games = cryptoRoulette.getGames(True)
+    print("games")
     print(games)
-    game_added = newGameKey in games
-    dealerGameStatus = cryptoRoulette.getGameStatus(newGameKey)
-    print("dealerGameStatus")
-    print(dealerGameStatus)
-    if game_added:
 
-        try:
-            cryptoRoulette.startNewGame(
-                ante, newGameKey, {"from": account, "value": ante}
-            )
-            assert (False, "Game in progress error not thrown.")
-        except exceptions.VirtualMachineError as e:
-            print(e)
-            assert (
-                e == "revert: You already have a game in progress.",
-                "Incorrect error.",
-            )
+
+def test_get_game_info():
+    cryptoRoulette = CryptoRoulette[-1]
+    newGameKey = "0x4A2...22e85_2022-05-30 03:04:58.517056"
+
+    (
+        dealer,
+        ante,
+        gameStatus,
+        potAmount,
+        playerCount,
+        currentRound,
+    ) = cryptoRoulette.getGameInfo(newGameKey)
+
+    print("gameinfo")
+    print(
+        dealer,
+        ante,
+        gameStatus,
+        potAmount,
+        playerCount,
+        currentRound,
+    )
+
+    (playerAddresses, playerStacks) = cryptoRoulette.getGamePlayers(newGameKey)
+    print("address and stack")
+    print(playerAddresses)
+    print(playerStacks)

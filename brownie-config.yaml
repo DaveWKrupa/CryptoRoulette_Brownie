@@ -1,15 +1,15 @@
 dependencies:
-  - smartcontractkit/chainlink-brownie-contracts@0.4.0
-  - OpenZeppelin/openzeppelin-contracts@4.2.0
+  - smartcontractkit/chainlink-brownie-contracts@0.2.2
+  - OpenZeppelin/openzeppelin-contracts@4.4.0
   
 #remap the @chainlink to patrick's repo
 compiler:
   solc:
     remappings:
-      - '@chainlink=smartcontractkit/chainlink-brownie-contracts@0.4.0'
-      - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.2.0'
+      - '@chainlink=C:/Users/dave_/.brownie/packages/smartcontractkit/chainlink-brownie-contracts@0.2.2'
+      - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.4.0'
 
-
+#@chainlink=smartcontractkit/chainlink-brownie-contracts@0.2.2'
 dotenv: .env
 wallets:
   
@@ -28,21 +28,18 @@ networks:
   default: development
   development:
     keyhash: '0x2ed0feb3e7fd2022120aa84fab1945545a9f2ffc9076fd6156fa96eaff4c1311'
-    fee: 100000000000000000 #.1 link
+    vrf_coordinator: '0xb3dCcb4Cf7a26f6cf6B120Cf5A73875B7BBc655B'
+    subscriptionid: 5292
     verify: False
   kovan:
     verify: True #used when deploying contract
-    vrf_coordinator: '0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9'
-    link_token: '0xa36085F69e2889c224210F603D836748e7dC0088'
+    vrf_coordinator: '0x6168499c0cFfCaCD319c818142124B7A15E857ab'
     keyhash: '0x6c3699283bda56ad74f6b855546325b68d482e983852a7a82979cc4807b641f4'
-    fee: 100000000000000000 #.1 link
   rinkeby:
     verify: True
     vrf_coordinator: '0xb3dCcb4Cf7a26f6cf6B120Cf5A73875B7BBc655B'
-    link_token: '0x01BE23585060835E02B77ef475b0Cc51aA1e0709'
-    keyhash: '0x2ed0feb3e7fd2022120aa84fab1945545a9f2ffc9076fd6156fa96eaff4c1311'
-    fee: 100000000000000000 #.1 link
-    explorer_api: 'https://api-rinkeby.etherscan.io/api'
+    keyhash: '0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc'
+    subscriptionid: 5292
   mainnet-fork-dev:
     verify: False
   mainnet-fork-infura:
@@ -54,3 +51,4 @@ networks:
     verify: True
   ganache-local:
     verify: False
+

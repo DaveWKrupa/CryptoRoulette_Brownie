@@ -2,36 +2,44 @@
 
 pragma solidity ^0.8.0;
 
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-contract CryptoRoulette is Ownable, VRFConsumerBase {
+contract CryptoRoulette is Ownable, VRFConsumerBaseV2 {
     ///event declarations
 
+    //indexed strings are hashed to allow the search to work
+    //so also include a readable string gameKey
+    //without the indexed modifier
     event newGameStarted(
         address indexed dealer,
-        string indexed gameKey,
+        string indexed gameKeyHash,
+        string gameKey,
         uint256 timeStamp,
         uint256 ante
     );
 
     event gameStatusChanged(
         address indexed dealer,
-        string indexed gameKey,
+        string indexed gameKeyHash,
+        string gameKey,
         uint256 timeStamp,
         string newStatus
     );
 
     event playerJoined(
         address indexed player,
-        string indexed gameKey,
+        string indexed gameKeyHash,
+        string gameKey,
         uint256 timeStamp
     );
 
     event playerSubmittedNumbers(
         address indexed player,
-        string indexed gameKey,
+        string indexed gameKeyHash,
+        string gameKey,
         uint256 timeStamp,
         uint256 highLow,
         uint256 oddEven,
@@ -41,18 +49,26 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
     );
 
     event rouletteWheelSpun(
-        string indexed gameKey,
+        string indexed gameKeyHash,
+        string gameKey,
         uint256 timeStamp,
         uint256 currentRound
     );
 
     event playerWon(
         address indexed player,
-        string indexed gameKey,
+        string indexed gameKeyHash,
+        string gameKey,
         string category,
         uint256 amountWon,
         uint256 playerStack,
         uint256 currentRound
+    );
+
+    event randomNumberRequestReturn(
+        string indexed gameKeyHash,
+        string gameKey,
+        bool succeeded
     );
 
     /////////////////////////////////////////////////////
@@ -96,7 +112,7 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
     mapping(address => string[]) internal dealerGameKeys; //all game keys for dealer
     mapping(string => DealerGame) internal gameKeyDealerGame; //list of all games
     //used for matching random number requests to the game making the request
-    mapping(bytes32 => string) internal requestIDGameKey;
+    mapping(uint256 => string) internal requestIDGameKey;
 
     //Need to keep track of submitted numbers by players
     //The parent mapping uses the gameKey as the key
@@ -143,22 +159,24 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
     /////////////////////////////////////////////////////
     /////////////////////////////////////////////////////
 
-    ///public variables
-    //not sure if these need to be public
-    address public VRFCoordinator;
-    address public LinkToken;
-
-    uint256 public randomnumber; //just for testing
-    /////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////
-
     ///private variables
+    VRFCoordinatorV2Interface private COORDINATOR;
     uint256 private cryptoRouletteBank = 0; //keep track of dealer fees added
-    uint256 private dealerFee = ONE_ONEHUNDREDTH_ETH;
+    //uint256 private dealerFee = ONE_ONEHUNDREDTH_ETH;
+    uint256 private dealerFee = ONE_ONETHOUSANDTH_ETH;
     bool private allowNewGames = true;
     bytes32 private keyHash;
-    uint256 private linkFee;
+    uint64 private subscriptionId;
+    uint32 callbackGasLimit = 100000;
+    uint16 requestConfirmations = 3;
+    //Can only request one random number
+    //from VRFConsumerBaseV2 at a time per contract.
+    //So once a request is made, wait until the
+    //fulfillRandomWords is called before making new request
+    //randomNumberRequestLocked used to block new calls
+    bool randomNumberRequestLocked = false;
+    //keep track of when the last time the lock was made
+    uint256 randomNumberRequestLockTime;
     /////////////////////////////////////////////////////
     /////////////////////////////////////////////////////
     /////////////////////////////////////////////////////
@@ -188,19 +206,13 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
     ///constructor
     constructor(
         address _vrfCoordinator,
-        address _linkToken,
-        uint256 _linkFee,
-        bytes32 _keyHash
-    ) VRFConsumerBase(_vrfCoordinator, _linkToken) {
+        bytes32 _keyHash,
+        uint64 _subscriptionId
+    ) VRFConsumerBaseV2(_vrfCoordinator) {
+        COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
         keyHash = _keyHash;
-        linkFee = _linkFee;
-        VRFCoordinator = _vrfCoordinator;
-        LinkToken = _linkToken;
+        subscriptionId = _subscriptionId;
     }
-
-    /////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////
 
     ///Game functions
     function startNewGame(uint256 _ante, string memory _gameKey)
@@ -213,7 +225,9 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
             _gameKey,
             _ante
         );
+
         require(success, message);
+
         uint256 timeStamp = block.timestamp;
         //dealer pays a fee to start a game
         //keep track of the dealer fees added to the contract
@@ -252,9 +266,10 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
         //need to have easy access to all gamekeys associated with a dealer
         //so add it to the array in the mapping
         dealerGameKeys[msg.sender].push(_gameKey);
-        emit newGameStarted(msg.sender, _gameKey, timeStamp, _ante);
+        emit newGameStarted(msg.sender, _gameKey, _gameKey, timeStamp, _ante);
         emit gameStatusChanged(
             msg.sender,
+            _gameKey,
             _gameKey,
             timeStamp,
             WAITING_FOR_PLAYERS_STRING
@@ -262,23 +277,17 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
     }
 
     function setGameToInProgress(string memory _gameKey) public {
-        (uint256 index, string memory gameKey2) = getDealerCurrentGame(
-            msg.sender
-        );
-        require(!isSameString(gameKey2, ""), GAME_NOT_FOUND_STRING);
-        require(
-            isSameString(gameKey2, _gameKey),
-            "Game key is not current game for dealer."
-        );
-        require(
-            gameKeyDealerGame[_gameKey].gameStatus ==
-                GameStatus.WAITING_FOR_PLAYERS,
-            "Game already in progress or ended."
-        );
+        (
+            bool success,
+            string memory message
+        ) = checkSetGameToInProgressRequirements(_gameKey, msg.sender);
+        require(success, message);
+
         gameKeyDealerGame[_gameKey].gameStatus = GameStatus.IN_PROGRESS;
         gameKeyDealerGame[_gameKey].currentRound = 1;
         emit gameStatusChanged(
             msg.sender,
+            _gameKey,
             _gameKey,
             block.timestamp,
             IN_PROGRESS_STRING
@@ -306,7 +315,7 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
         }
         require(playerAdded, "Game already has 6 players");
 
-        emit playerJoined(msg.sender, _gameKey, block.timestamp);
+        emit playerJoined(msg.sender, _gameKey, _gameKey, block.timestamp);
     }
 
     function submitNumbers(
@@ -315,19 +324,12 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
         uint256 _oddEven,
         uint256[] memory _numbers
     ) public {
-        require(playerIsInGame(_gameKey, msg.sender), "Player not in game.");
-        require(
-            gameKeyDealerGame[_gameKey].gameStatus == GameStatus.IN_PROGRESS,
-            "Cannot submit numbers. Game is not in progress."
-        );
-        require(
-            !hasPlayerSubmittedNumbers(_gameKey, msg.sender),
-            "Player already submitted numbers."
-        );
-        require(
-            !gameKeyDealerGame[_gameKey].locked,
-            "Too many players submitting at one time. Please try again."
-        );
+        (
+            bool player_can_submit,
+            string memory message
+        ) = checkPlayerSubmitRequirements(_gameKey, msg.sender);
+
+        require(player_can_submit, message);
 
         //make sure only one player submits at a time
         //to avoid collision updating potAmount
@@ -397,25 +399,46 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
         //we can now allow other players to submit their numbers
         gameKeyDealerGame[_gameKey].locked = false;
 
+        uint256 ante = gameKeyDealerGame[_gameKey].ante;
+
         emit playerSubmittedNumbers(
             msg.sender,
+            _gameKey,
             _gameKey,
             block.timestamp,
             _highLow,
             _oddEven,
             validNumbers,
-            gameKeyDealerGame[_gameKey].ante,
+            ante,
             playersStack
         );
+    }
 
-        //if all players have submitted numbers then time to spin wheel
-        if (
-            (highLowPlayers[_gameKey][HIGHLOW_HIGH].length +
-                highLowPlayers[_gameKey][HIGHLOW_LOW].length) ==
-            gameKeyDealerGame[_gameKey].playerCount
-        ) {
-            spinWheel(_gameKey);
+    function dealerSpinWheel(string memory _gameKey) public {
+        (
+            bool allowSpinWheel,
+            string memory message
+        ) = checkSpinWheelRequirements(_gameKey, msg.sender);
+        require(allowSpinWheel, message);
+
+        if (randomNumberRequestLocked) {
+            //if the lock was set more than 5 minutes ago
+            //release it because the VRFConsumerBaseV2
+            //has likely failed to call fulfillRandomWords
+            //after a request.
+            if (block.timestamp - randomNumberRequestLockTime > 300) {
+                randomNumberRequestLocked = false;
+            }
         }
+
+        require(
+            !randomNumberRequestLocked,
+            "Random number call failed. Please wait and try again."
+        );
+
+        randomNumberRequestLocked = true;
+        randomNumberRequestLockTime = block.timestamp;
+        spinWheel(_gameKey);
     }
 
     function withdrawalStack(string memory _gameKey) public payable {
@@ -596,17 +619,19 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
     function spinWheel(string memory _gameKey) internal {
         emit rouletteWheelSpun(
             _gameKey,
+            _gameKey,
             block.timestamp,
             gameKeyDealerGame[_gameKey].currentRound
         );
-        //make sure spinWheel function is not called more than once by the dealer
-        //this will be set back to false after the round is over
-        gameKeyDealerGame[_gameKey].locked = true;
-        //uint256 randnum = 25421316035709457781973869042631338060882482856973011057575811185957693383412;
-        uint256 randnum = 72171440607180675994066414937896585727193059169487731177064901899085013496626;
-        payWinners(_gameKey, randnum); //this is here for testing
-        // bytes32 requestId = requestRandomness(keyHash, linkFee);
-        //emit RequestedRandomness(requestId);
+
+        uint256 requestId = COORDINATOR.requestRandomWords(
+            keyHash,
+            subscriptionId,
+            requestConfirmations,
+            callbackGasLimit,
+            1
+        );
+        requestIDGameKey[requestId] = _gameKey;
     }
 
     function checkAllowWithdrawal(string memory _gameKey)
@@ -665,8 +690,6 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
             //increment the round
             gameKeyDealerGame[_gameKey].currentRound += 1;
         }
-
-        gameKeyDealerGame[_gameKey].locked = false;
     }
 
     function payOddEvenWinners(
@@ -700,6 +723,7 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
                         gameKeyDealerGame[_gameKey].potAmount -= oddEvenShare;
                         emit playerWon(
                             gameKeyDealerGame[_gameKey].players[k],
+                            _gameKey,
                             _gameKey,
                             "Odds-Evens",
                             oddEvenShare,
@@ -755,6 +779,7 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
                         emit playerWon(
                             gameKeyDealerGame[_gameKey].players[k],
                             _gameKey,
+                            _gameKey,
                             "High-Low",
                             highLowShare,
                             gameKeyDealerGame[_gameKey].playerStacks[k],
@@ -806,6 +831,7 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
 
                         emit playerWon(
                             gameKeyDealerGame[_gameKey].players[k],
+                            _gameKey,
                             _gameKey,
                             "Exact Number",
                             exactNumbersShare,
@@ -868,6 +894,7 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
 
         emit gameStatusChanged(
             msg.sender,
+            _gameKey,
             _gameKey,
             endTime,
             GAME_ENDED_STRING
@@ -975,6 +1002,74 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
         return (true, "");
     }
 
+    function checkPlayerSubmitRequirements(
+        string memory _gameKey,
+        address _player
+    ) internal returns (bool success, string memory message) {
+        if (!playerIsInGame(_gameKey, _player)) {
+            return (false, "Player not in game.");
+        }
+        if (gameKeyDealerGame[_gameKey].gameStatus != GameStatus.IN_PROGRESS) {
+            return (false, "Cannot submit numbers. Game is not in progress.");
+        }
+        if (hasPlayerSubmittedNumbers(_gameKey, _player)) {
+            return (false, "Player already submitted numbers.");
+        }
+        if (gameKeyDealerGame[_gameKey].locked) {
+            return (
+                false,
+                "Too many players submitting at one time. Please try again."
+            );
+        }
+        return (true, "");
+    }
+
+    function checkSpinWheelRequirements(string memory _gameKey, address _dealer)
+        internal
+        returns (bool success, string memory message)
+    {
+        (, string memory gameKey2) = getDealerCurrentGame(_dealer);
+        if (!isSameString(gameKey2, _gameKey)) {
+            //Dealer can only have one current game at a time.
+            return (false, "Game key is not current game for dealer.");
+        }
+        if (
+            (highLowPlayers[_gameKey][HIGHLOW_HIGH].length +
+                highLowPlayers[_gameKey][HIGHLOW_LOW].length) <
+            gameKeyDealerGame[_gameKey].playerCount
+        ) {
+            return (false, "Not all players have submitted numbers.");
+        }
+    }
+
+    function checkSetGameToInProgressRequirements(
+        string memory _gameKey,
+        address _dealer
+    ) internal returns (bool success, string memory message) {
+        (, string memory gameKey2) = getDealerCurrentGame(_dealer);
+        if (isSameString(gameKey2, "")) {
+            return (false, GAME_NOT_FOUND_STRING);
+        }
+        if (!isSameString(gameKey2, _gameKey)) {
+            //Dealer can only have one current game at a time.
+            return (false, "Game key is not current game for dealer.");
+        }
+        if (
+            gameKeyDealerGame[_gameKey].gameStatus !=
+            GameStatus.WAITING_FOR_PLAYERS
+        ) {
+            return (false, "Game already in progress or ended.");
+        }
+        if (gameKeyDealerGame[_gameKey].playerCount < 2) {
+            return (
+                false,
+                "Two to six players required to play CryptoRoulette."
+            );
+        }
+
+        return (true, "");
+    }
+
     function playerIsInGame(string memory _gameKey, address _player)
         internal
         returns (bool)
@@ -1076,27 +1171,26 @@ contract CryptoRoulette is Ownable, VRFConsumerBase {
         allowNewGames = _allowNewGames;
     }
 
-    function setLinkFee(uint256 _linkFee) public onlyOwner {
-        linkFee = _linkFee;
+    function clearGames() public onlyOwner {
+        //just for testing, remove before going live
+        string[] memory empty;
+        currentGames = empty;
     }
 
     ////////////////////////////////////////////////////
     /////////////////////////////////////////////////////
     /////////////////////////////////////////////////////
-
-    function fulfillRandomness(bytes32 _requestId, uint256 _randomness)
-        internal
-        override
-    {
-        //emit RandomnessReceived(_randomness);
-        // require(
-        //     lottery_state == LOTTERY_STATE.CALCULATING_WINNER,
-        //     "Lottery is not calculating winner."
-        // );
-        // require(
-        //     _randomness > 0,
-        //     "Random number not returned by VRFConsumerBase"
-        // );
-        randomnumber = _randomness;
+    function fulfillRandomWords(
+        uint256 _requestId,
+        uint256[] memory _randomWords
+    ) internal override {
+        string memory gameKey = requestIDGameKey[_requestId];
+        if (_randomWords.length > 0) {
+            emit randomNumberRequestReturn(gameKey, gameKey, true);
+            payWinners(gameKey, _randomWords[0]);
+        } else {
+            emit randomNumberRequestReturn(gameKey, gameKey, false);
+        }
+        randomNumberRequestLocked = false;
     }
 }

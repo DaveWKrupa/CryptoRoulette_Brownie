@@ -2,28 +2,21 @@ from brownie import CryptoRoulette, network, config
 from web3 import Web3
 from scripts.helper_scripts import (
     get_account,
-    get_contract,
     LOCAL_BLOCKCHAIN_ENVIRONMENTS,
-    deploy_mocks,
 )
 
 
 def deploy():
 
     if network.show_active() in LOCAL_BLOCKCHAIN_ENVIRONMENTS:
-        deploy_mocks()
         account = get_account(index=0)
     else:
-        if CryptoRoulette[-1]:
-            return CryptoRoulette[-1]
-        else:
-            account = get_account(configkey="private_key_player1")
+        account = get_account(configkey="private_key_player1")
 
     cryptoRoulette = CryptoRoulette.deploy(
-        get_contract("vrf_coordinator").address,
-        get_contract("link_token").address,
-        config["networks"][network.show_active()]["fee"],
+        config["networks"][network.show_active()]["vrf_coordinator"],
         config["networks"][network.show_active()]["keyhash"],
+        config["networks"][network.show_active()]["subscriptionid"],
         {"from": account},
         publish_source=config["networks"][network.show_active()].get("verify", False),
     )
