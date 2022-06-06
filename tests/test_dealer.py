@@ -35,25 +35,6 @@ def test_dealer_start_game():
         ante, CURRENT_GAME_KEY, {"from": account, "value": ante, "gasLimit": 10000000}
     )
     print(start_game_tx)
-    # games = cryptoRoulette.getGames(True)
-    # print("games")
-    # print(games)
-    # game_added = newGameKey in games
-    # # assert game_added, "Game not added"
-    # dealerGameStatus = cryptoRoulette.getGameStatus(newGameKey)
-    # print(dealerGameStatus)
-    # # assert dealerGameStatus == "Waiting for players", "Game status incorrect on start.",
-
-    # if game_added:
-    #     print("game added")
-
-    #     newgamedealer = start_game_tx.events["newGameStarted"]["dealer"]
-    #     newgamegameKey = start_game_tx.events["newGameStarted"]["gameKey"]
-    #     newgametimeStamp = start_game_tx.events["newGameStarted"]["timeStamp"]
-    #     newgameante = start_game_tx.events["newGameStarted"]["ante"]
-    #     print("new game event / change status event")
-    #     newstatus = start_game_tx.events["gameStatusChanged"]["newStatus"]
-    #     print(newgamedealer, newgamegameKey, newgametimeStamp, newgameante, newstatus)
 
 
 def test_get_numbers():
@@ -91,14 +72,6 @@ def test_spin_wheel():
     print(cryptoRoulette)
     tx = cryptoRoulette.dealerSpinWheel(CURRENT_GAME_KEY, {"from": account})
     time.sleep(10)
-
-    # message = cryptoRoulette.getMessage()
-    # print("message", message)
-
-    # gameKey = tx.events["rouletteWheelSpun"]["gameKey"]
-    # timestamp = tx.events["rouletteWheelSpun"]["timeStamp"]
-    # currentRound = tx.events["rouletteWheelSpun"]["currentRound"]
-    # print(gameKey, timestamp, currentRound)
 
 
 def test_get_games():
