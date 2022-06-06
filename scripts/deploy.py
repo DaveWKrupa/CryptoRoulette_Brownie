@@ -13,12 +13,16 @@ def deploy():
     else:
         account = get_account(configkey="private_key_player1")
 
+    subscription_id = config["networks"][network.show_active()]["subscriptionid"]
+    key_hash = config["networks"][network.show_active()]["keyhash"]
+    vrf_coordinator = config["networks"][network.show_active()]["vrf_coordinator"]
+
     cryptoRoulette = CryptoRoulette.deploy(
-        config["networks"][network.show_active()]["vrf_coordinator"],
-        config["networks"][network.show_active()]["keyhash"],
-        config["networks"][network.show_active()]["subscriptionid"],
+        subscription_id,
+        vrf_coordinator,
+        key_hash,
         {"from": account},
-        publish_source=config["networks"][network.show_active()].get("verify", False),
+        publish_source=False,
     )
     print("Deployed CryptoRoulette!")
     return cryptoRoulette

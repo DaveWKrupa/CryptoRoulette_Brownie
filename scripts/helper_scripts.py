@@ -10,6 +10,14 @@ STARTING_PRICE = 200000000000
 LOCAL_BLOCKCHAIN_ENVIRONMENTS = ["development", "ganache-local"]
 FORKED_LOCAL_ENVIRONMENTS = ["mainnet-fork", "mainnet-fork-dev", "mainnet-fork-infura"]
 
+# CURRENT_GAME_KEY = "mynewgamekey"
+CURRENT_GAME_KEY = "newgamekey2"
+
+HIGHLOW_HIGH = 1
+HIGHLOW_LOW = 0
+ODDEVEN_ODD = 1
+ODDEVEN_EVEN = 0
+
 
 def get_account(index=None, id=None, configkey=None):
     if index:
