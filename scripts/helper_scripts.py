@@ -11,7 +11,7 @@ LOCAL_BLOCKCHAIN_ENVIRONMENTS = ["development", "ganache-local"]
 FORKED_LOCAL_ENVIRONMENTS = ["mainnet-fork", "mainnet-fork-dev", "mainnet-fork-infura"]
 
 # CURRENT_GAME_KEY = "mynewgamekey"
-CURRENT_GAME_KEY = "newgamekey2"
+CURRENT_GAME_KEY = "newgamekey1"
 
 HIGHLOW_HIGH = 1
 HIGHLOW_LOW = 0

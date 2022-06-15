@@ -52,7 +52,20 @@ def test_get_message():
     print(message)
 
 
-def test_inprogress():
+def test_set_ready_for_players():
+
+    cryptoRoulette = CryptoRoulette[-1]
+    print(cryptoRoulette)
+    account = get_account(configkey="private_key_player1")
+    gameKey = CURRENT_GAME_KEY
+    # dealer is setting game status to in progress
+    print("setting")
+    set_in_progress_tx = cryptoRoulette.setReadyForPlayers(gameKey, {"from": account})
+
+    print(set_in_progress_tx)
+
+
+def test_set_in_progress():
 
     cryptoRoulette = CryptoRoulette[-1]
     print(cryptoRoulette)
